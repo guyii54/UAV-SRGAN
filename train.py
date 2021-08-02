@@ -123,7 +123,7 @@ if __name__ == '__main__':
             g_loss = generator_criterion(fake_out, fake_img, real_img)
             MSE_loss = MSE_criterion(fake_img, real_img)
             TV_loss = TV_criterion(fake_img)
-            total_loss = MSE_loss + g_loss + 100*TV_loss
+            total_loss = MSE_loss + g_loss + 10*TV_loss
             # print(MSE_loss, g_loss, TV_loss)
             total_loss.backward()
             

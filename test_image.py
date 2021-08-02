@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description='Test Single Image')
 parser.add_argument('--upscale_factor', default=8, type=int, help='super resolution upscale factor')
 parser.add_argument('--test_mode', default='GPU', type=str, choices=['GPU', 'CPU'], help='using GPU or CPU')
 parser.add_argument('--image_path', default=r'D:\UAVLandmark\SR\Datasets\LR32_Test_Nopadding', type=str, help='test low resolution image name')
-parser.add_argument('--name', default='addTV', type=str, help='where to save the model')
+parser.add_argument('--name', default='loss1_1_100', type=str, help='where to save the model')
 parser.add_argument('--epoch', default=500, type=int, help='generator model epoch name')
 opt = parser.parse_args()
 
