@@ -5,6 +5,8 @@ from PIL import Image
 from torch.utils.data.dataset import Dataset
 from torchvision.transforms import Compose, RandomCrop, ToTensor, ToPILImage, CenterCrop, Resize
 
+import numpy as np
+
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in ['.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'])
@@ -39,9 +41,11 @@ def display_transform():
 
 
 class TrainDatasetFromFolder(Dataset):
-    def __init__(self, dataset_dir, crop_size, upscale_factor):
+    def __init__(self, dataset_dir, anno_file=None, crop_size=128, upscale_factor=4):
         super(TrainDatasetFromFolder, self).__init__()
-        self.image_filenames = [join(dataset_dir, x) for x in listdir(dataset_dir) if is_image_file(x)]
+        annos = np.load(anno_file, allow_pickle=True).tolist()
+        self.image_filenames = [join(dataset_dir, x['img_name']) for x in annos if is_image_file(x['img_name'])]
+        # self.image_filenames = [join(dataset_dir, x) for x in listdir(dataset_dir) if is_image_file(x)]
         crop_size = calculate_valid_crop_size(crop_size, upscale_factor)
         self.hr_transform = train_hr_transform(crop_size)
         self.lr_transform = train_lr_transform(crop_size, upscale_factor)
@@ -56,10 +60,12 @@ class TrainDatasetFromFolder(Dataset):
 
 
 class ValDatasetFromFolder(Dataset):
-    def __init__(self, dataset_dir, upscale_factor):
+    def __init__(self, dataset_dir, anno_file=None, upscale_factor=4):
         super(ValDatasetFromFolder, self).__init__()
         self.upscale_factor = upscale_factor
-        self.image_filenames = [join(dataset_dir, x) for x in listdir(dataset_dir) if is_image_file(x)]
+        annos = np.load(anno_file, allow_pickle=True).tolist()
+        self.image_filenames = [join(dataset_dir, x['img_name']) for x in annos if is_image_file(x['img_name'])]
+        # self.image_filenames = [join(dataset_dir, x) for x in listdir(dataset_dir) if is_image_file(x)]
 
     def __getitem__(self, index):
         hr_image = Image.open(self.image_filenames[index])

@@ -15,6 +15,7 @@ import pytorch_ssim
 from data_utils import TrainDatasetFromFolder, ValDatasetFromFolder, display_transform
 from loss import GeneratorLoss
 from loss import TVLoss
+from loss import PercepLoss
 from torch.nn import MSELoss
 from model import Generator, Discriminator
 
@@ -29,8 +30,11 @@ parser.add_argument('--data_dir', default='None', type=str, help='where to save 
 
 
 if __name__ == '__main__':
-    train_dir = r'D:\UAVLandmark\Dataset\data624\HR3'
-    val_dir = r'D:\UAVLandmark\SR\Datasets\HR_Test'
+    data_root = r'D:\UAVLandmark\Dataset\keypoint\data'
+    train_annos = r'D:\UAVLandmark\Dataset\keypoint\annotations\UAV_train.npy'
+    val_annos = r'D:\UAVLandmark\Dataset\keypoint\annotations\UAV_test.npy'
+    # train_dir = r'D:\UAVLandmark\Dataset\data624\HR3'
+    # val_dir = r'D:\UAVLandmark\SR\Datasets\HR_Test'
     losses = ['MSE', 'g', 'd', 'TV']
 
     opt = parser.parse_args()
@@ -43,20 +47,20 @@ if __name__ == '__main__':
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-
-    train_set = TrainDatasetFromFolder(train_dir, crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
-    val_set = ValDatasetFromFolder(val_dir, upscale_factor=UPSCALE_FACTOR)
+    train_set = TrainDatasetFromFolder(data_root, train_annos, crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+    val_set = ValDatasetFromFolder(data_root, val_annos, upscale_factor=UPSCALE_FACTOR)
     train_loader = DataLoader(dataset=train_set, num_workers=4, batch_size=8, shuffle=True)
     val_loader = DataLoader(dataset=val_set, num_workers=4, batch_size=1, shuffle=False)
     
-    netG = Generator(UPSCALE_FACTOR)
+    netG = Generator(UPSCALE_FACTOR, inchannel=1)
     print('# generator parameters:', sum(param.numel() for param in netG.parameters()))
-    netD = Discriminator()
+    netD = Discriminator(inchannel=1)
     print('# discriminator parameters:', sum(param.numel() for param in netD.parameters()))
     
-    generator_criterion = GeneratorLoss()
+    generator_criterion = GeneratorLoss(inchannel=1)
     MSE_criterion = MSELoss()
     TV_criterion = TVLoss()
+    Keypoint_criterion = PercepLoss()
     
     if torch.cuda.is_available():
         netG.cuda()
@@ -123,7 +127,8 @@ if __name__ == '__main__':
             g_loss = generator_criterion(fake_out, fake_img, real_img)
             MSE_loss = MSE_criterion(fake_img, real_img)
             TV_loss = TV_criterion(fake_img)
-            total_loss = MSE_loss + g_loss + 10*TV_loss
+            Keypoint_loss = Keypoint_criterion(fake_img, real_img)
+            total_loss = g_loss
             # print(MSE_loss, g_loss, TV_loss)
             total_loss.backward()
             
@@ -196,7 +201,7 @@ if __name__ == '__main__':
                 index += 1
     
         # save model parameters
-        if epoch%50 == 0:
+        if epoch%1 == 0:
             torch.save(netG.state_dict(), join(save_dir, 'netG_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch)))
             torch.save(netD.state_dict(), join(save_dir, 'netD_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch)))
         # save loss\scores\psnr\ssim
