@@ -21,7 +21,7 @@ from model import Generator, Discriminator
 
 parser = argparse.ArgumentParser(description='Train Super Resolution Models')
 parser.add_argument('--crop_size', default=128, type=int, help='training images crop size')
-parser.add_argument('--upscale_factor', default=8, type=int, choices=[2, 4, 8],
+parser.add_argument('--upscale_factor', default=4, type=int, choices=[2, 4, 8],
                     help='super resolution upscale factor')
 parser.add_argument('--num_epochs', default=500, type=int, help='train epoch number')
 parser.add_argument('--name', type=str, help='where to save the model')
@@ -30,12 +30,13 @@ parser.add_argument('--data_dir', default='None', type=str, help='where to save 
 
 
 if __name__ == '__main__':
-    data_root = r'D:\UAVLandmark\Dataset\keypoint\data'
-    train_annos = r'D:\UAVLandmark\Dataset\keypoint\annotations\UAV_train.npy'
-    val_annos = r'D:\UAVLandmark\Dataset\keypoint\annotations\UAV_test.npy'
+    data_root = r'D:\UAVLandmark\Dataset\keypoint\BBox_HR'
+    val_root = r'D:\UAVLandmark\Dataset\keypoint\BBox_HRVal'
+    # train_annos = r'D:\UAVLandmark\Dataset\keypoint\annotations\UAV_train.npy'
+    # val_annos = r'D:\UAVLandmark\Dataset\keypoint\annotations\UAV_test.npy'
     # train_dir = r'D:\UAVLandmark\Dataset\data624\HR3'
     # val_dir = r'D:\UAVLandmark\SR\Datasets\HR_Test'
-    losses = ['MSE', 'g', 'd', 'TV']
+    losses = ['MSE', 'g', 'd', 'TV','Keypoint']
 
     opt = parser.parse_args()
     CROP_SIZE = opt.crop_size
@@ -47,8 +48,9 @@ if __name__ == '__main__':
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    train_set = TrainDatasetFromFolder(data_root, train_annos, crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
-    val_set = ValDatasetFromFolder(data_root, val_annos, upscale_factor=UPSCALE_FACTOR)
+    # train_set = TrainDatasetFromFolder(data_root, train_annos, crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+    train_set = TrainDatasetFromFolder(data_root, crop_size=CROP_SIZE, upscale_factor=UPSCALE_FACTOR)
+    val_set = ValDatasetFromFolder(val_root, upscale_factor=UPSCALE_FACTOR)
     train_loader = DataLoader(dataset=train_set, num_workers=4, batch_size=8, shuffle=True)
     val_loader = DataLoader(dataset=val_set, num_workers=4, batch_size=1, shuffle=False)
     
@@ -142,16 +144,18 @@ if __name__ == '__main__':
             running_results['d_loss'] += d_loss.item() * batch_size
             running_results['MSE_loss'] += MSE_loss.item() * batch_size
             running_results['TV_loss'] += TV_loss.item() * batch_size
+            running_results['Keypoint_loss'] += Keypoint_loss.item() * batch_size
 
             running_results['d_score'] += real_out.item() * batch_size
             running_results['g_score'] += fake_out.item() * batch_size
     
-            train_bar.set_description(desc='[%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_MSE: %.4f Loss_TV: %.4f D(x): %.4f D(G(z)): %.4f' % (
+            train_bar.set_description(desc='[%d/%d] Loss_D: %.4f Loss_G: %.4f Loss_MSE: %.4f Loss_TV: %.4f, loss_K: %.4f D(x): %.4f D(G(z)): %.4f' % (
                 epoch, NUM_EPOCHS,
                 running_results['d_loss'] / running_results['batch_sizes'],
                 running_results['g_loss'] / running_results['batch_sizes'],
                 running_results['MSE_loss'] / running_results['batch_sizes'],
                 running_results['TV_loss'] / running_results['batch_sizes'],
+                running_results['Keypoint_loss'] / running_results['batch_sizes'],
                 running_results['d_score'] / running_results['batch_sizes'],
                 running_results['g_score'] / running_results['batch_sizes']))
     
@@ -195,13 +199,14 @@ if __name__ == '__main__':
             training_save = join(save_dir,'training_save')
             if not os.path.exists(training_save):
                 os.makedirs(training_save)
-            for image in val_save_bar:
-                image = utils.make_grid(image, nrow=3, padding=5)
-                utils.save_image(image,  join(training_save,'epoch_%d_index_%d.png' % (epoch, index)), padding=5)
-                index += 1
+            if epoch%50 == 0:
+                for image in val_save_bar:
+                    image = utils.make_grid(image, nrow=3, padding=5)
+                    utils.save_image(image,  join(training_save,'epoch_%d_index_%d.png' % (epoch, index)), padding=5)
+                    index += 1
     
         # save model parameters
-        if epoch%1 == 0:
+        if epoch%50 == 0:
             torch.save(netG.state_dict(), join(save_dir, 'netG_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch)))
             torch.save(netD.state_dict(), join(save_dir, 'netD_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch)))
         # save loss\scores\psnr\ssim
@@ -209,6 +214,7 @@ if __name__ == '__main__':
         results['g_loss'].append(running_results['g_loss'] / running_results['batch_sizes'])
         results['MSE_loss'].append(running_results['MSE_loss'] / running_results['batch_sizes'])
         results['TV_loss'].append(running_results['TV_loss'] / running_results['batch_sizes'])
+        results['Keypoint_loss'].append(running_results['Keypoint_loss'] / running_results['batch_sizes'])
         results['d_score'].append(running_results['d_score'] / running_results['batch_sizes'])
         results['g_score'].append(running_results['g_score'] / running_results['batch_sizes'])
         results['psnr'].append(valing_results['psnr'])
@@ -221,6 +227,7 @@ if __name__ == '__main__':
                       'Loss_G': results['g_loss'],
                       'Loss_MSE': results['MSE_loss'],
                       'Loss_TV': results['TV_loss'],
+                      'Loss_Keypoint': results['Keypoint_loss'],
                       'Score_D': results['d_score'],
                       'Score_G': results['g_score'],
                       'PSNR': results['psnr'],

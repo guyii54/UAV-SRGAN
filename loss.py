@@ -183,7 +183,7 @@ class PercepLoss(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x, y):
-        keypoint_loss = self.mse_loss(self.loss_net(x), self.loss_net(y))
+        keypoint_loss = self.mse_loss(self.loss_net(x)[0], self.loss_net(y)[0])
         return keypoint_loss
 
 

@@ -4,7 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 
 class Generator(nn.Module):
-    def __init__(self, scale_factor, inchannel=3):
+    def __init__(self, scale_factor, inchannel=1):
         upsample_block_num = int(math.log(scale_factor, 2))
 
         super(Generator, self).__init__()

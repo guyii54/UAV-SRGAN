@@ -43,8 +43,11 @@ def display_transform():
 class TrainDatasetFromFolder(Dataset):
     def __init__(self, dataset_dir, anno_file=None, crop_size=128, upscale_factor=4):
         super(TrainDatasetFromFolder, self).__init__()
-        annos = np.load(anno_file, allow_pickle=True).tolist()
-        self.image_filenames = [join(dataset_dir, x['img_name']) for x in annos if is_image_file(x['img_name'])]
+        if anno_file is None:
+            self.image_filenames = [join(dataset_dir, name) for name in listdir(dataset_dir)]
+        else:
+            annos = np.load(anno_file, allow_pickle=True).tolist()
+            self.image_filenames = [join(dataset_dir, x['img_name']) for x in annos if is_image_file(x['img_name'])]
         # self.image_filenames = [join(dataset_dir, x) for x in listdir(dataset_dir) if is_image_file(x)]
         crop_size = calculate_valid_crop_size(crop_size, upscale_factor)
         self.hr_transform = train_hr_transform(crop_size)
@@ -63,8 +66,11 @@ class ValDatasetFromFolder(Dataset):
     def __init__(self, dataset_dir, anno_file=None, upscale_factor=4):
         super(ValDatasetFromFolder, self).__init__()
         self.upscale_factor = upscale_factor
-        annos = np.load(anno_file, allow_pickle=True).tolist()
-        self.image_filenames = [join(dataset_dir, x['img_name']) for x in annos if is_image_file(x['img_name'])]
+        if anno_file is None:
+            self.image_filenames = [join(dataset_dir, name) for name in listdir(dataset_dir)]
+        else:
+            annos = np.load(anno_file, allow_pickle=True).tolist()
+            self.image_filenames = [join(dataset_dir, x['img_name']) for x in annos if is_image_file(x['img_name'])]
         # self.image_filenames = [join(dataset_dir, x) for x in listdir(dataset_dir) if is_image_file(x)]
 
     def __getitem__(self, index):
